@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orçamentos - QuoteSystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="header-left">
+            <h1 id="title">
+                <img src="src/logo.png" alt="Logo" vertical-align: middle; margin-right: 8px;"> 
+                QuoteSystem
+            </h1>
+        </div>
+        <button class="admin-access-btn" onclick="verificarAcessoAdmin()">Admin</button>
+    </header>
+
+    <main>
+        <div class="search-container">
+            <input type="text" id="busca" placeholder="Buscar exame..." oninput="filtrar()">
+
+            <div class="tipos">
+                <button class="tipo-btn ativo" onclick="mudarTipo('particular', this)">Particular</button>
+                <button class="tipo-btn" onclick="mudarTipo('desconto', this)">Desconto</button>
+                <button class="tipo-btn" onclick="mudarTipo('especial', this)">Especial</button>
+                <button class="tipo-btn" onclick="mudarTipo('prefeitura', this)">Prefeitura</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="coluna-exames">
+                <button id="btnNovoProcedimento" class="btn-primary" style="display: none; margin-bottom: 1rem; width: 100%;" onclick="abrirNovoProcedimento()">
+                    + Novo Procedimento
+                </button>
+
+                <div class="lista-exames" id="listaProcedimentos">
+                </div>
+            </div>
+
+            <div class="orcamento-wrapper">
+                <div class="orcamento">
+                    <div class="orcamento-header">
+                        <h3>Orçamento (<span id="contador">0</span> exames)</h3>
+                    </div>
+
+                    <textarea id="resultado" placeholder="Selecione os exames..." readonly style="min-height: 150px; flex-grow: 0;"></textarea>
+
+                    <div id="examesSelecionados" class="chips-container"></div>
+
+                    <div class="topo-orcamento">
+                        <div class="botoes">
+                            <button onclick="gerarOrcamento()" class="btn-primary">Gerar Texto</button>
+                            <button onclick="copiar()" class="btn-secondary">Copiar</button>
+                            <button onclick="limpar()" id="limpar-btn" class="btn-secondary">Limpar</button>
+                        </div>
+
+                        <div class="total-container">
+                            <span class="total-label">Total</span>
+                            <span class="total-valor" id="total">R$ 0.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="fraseMotivacional" class="frase-motivacional-externa"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast">Orçamento copiado!</div>
+
+<div id="modalLoginAdmin" class="modal">
+    <div class="modal-content">
+        <h3>Acesso Restrito</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+            Para acessar o modo administrador insira a senha
+        </p>
+        
+        <input type="password" id="senhaAdminInput" class="input-modal" placeholder="Senha">
+
+        <div class="botoes-admin-stack">
+            <button onclick="confirmarLogin()" id="login">ENTRAR</button>
+            
+            <div class="opcoes-texto">
+                <span onclick="fecharModal()" id="cancelar">Cancelar</span>
+                <span onclick="sairAdministrador()" id="sair-adm">Sair do Administrador</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div id="modalAdmin" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="tituloModalAdmin">Procedimento</h3>
+            
+            <div class="form-admin" style="text-align: left; margin-top: 1.5rem;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display:block; font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:5px;">CATEGORIA</label>
+                    <input type="text" id="editCategoria" list="listaCategorias" class="input-modal" style="text-align:left;" placeholder="Ex: ULTRASSOM">
+                    <datalist id="listaCategorias"></datalist>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="display:block; font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:5px;">NOME DO EXAME</label>
+                    <input type="text" id="editNome" class="input-modal" style="text-align:left;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Particular (R$)</label>
+                        <input type="number" id="vParticular" class="input-modal" style="text-align:left;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Desconto (R$)</label>
+                        <input type="number" id="vDesconto" class="input-modal" style="text-align:left;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Especial (R$)</label>
+                        <input type="number" id="vEspecial" class="input-modal" style="text-align:left;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Prefeitura (R$)</label>
+                        <input type="number" id="vPrefeitura" class="input-modal" style="text-align:left;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="botoes" style="justify-content: space-between; margin-top: 2rem;">
+                <div>
+                    <button onclick="salvarAlteracao()" class="btn-primary">Salvar</button>
+                    <button onclick="fecharModal()" class="btn-secondary">Cancelar</button>
+                </div>
+                <button onclick="excluirProcedimento()" id="btnExcluir" class="btn-secondary" style="background: var(--danger); border: none;">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>

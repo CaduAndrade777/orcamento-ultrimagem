@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - QuoteSystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="admin-page">
+
+    <header>
+        <div class="header-left">
+            <h1>Painel Admin</h1>
+        </div>
+        <button class="admin-access-btn" onclick="window.location.href='index.html'">Voltar ao Sistema</button>
+    </header>
+
+    <main class="admin-container">
+        <div class="admin-header-actions">
+            <div>
+                <h2>Gerenciar Procedimentos</h2>
+                <p style="color: var(--text-muted); font-size: 14px;">Edite valores ou adicione novos exames à base de dados.</p>
+            </div>
+            <button onclick="abrirNovoProcedimento()" class="btn-sucesso">+ Novo Procedimento</button>
+        </div>
+
+        <div class="card-tabela">
+            <table class="tabela-admin">
+                <thead>
+                    <tr>
+                        <th>Categoria</th>
+                        <th>Procedimento</th>
+                        <th>Particular</th>
+                        <th>Desconto</th>
+                        <th>Especial</th>
+                        <th>Prefeitura</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="listaAdmin">
+                    </tbody>
+            </table>
+        </div>
+        
+        <div class="admin-footer">
+            <p style="color: var(--text-muted);">Lembre-se de salvar antes de sair.</p>
+            <button onclick="salvarTudo()" class="btn-principal btn-lg">SALVAR TODAS AS ALTERAÇÕES</button>
+        </div>
+    </main>
+
+    <div id="modalAdmin" class="modal">
+        </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>
