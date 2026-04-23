@@ -6,7 +6,8 @@ from urllib.parse import quote_plus
 senha = "Admin@ultri"
 
 
-SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://root:{quote_plus(senha)}@localhost:3306/OrcaUltri_db"
+# Mude apenas esta linha:
+SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://root:{quote_plus(senha)}@127.0.0.1:3306/OrcaUltri_db"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

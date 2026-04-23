@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orçamentos - QuoteSystem</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 
 <body>
@@ -14,7 +14,7 @@
     <header>
         <div class="header-left">
             <h1 id="title">
-                <img src="src/logo.png" alt="Logo" vertical-align: middle; margin-right: 8px;"> 
+                <img src="/src/logo.png" alt="Logo">
                 QuoteSystem
             </h1>
         </div>
@@ -56,8 +56,8 @@
                     <div class="topo-orcamento">
                         <div class="botoes">
                             <button onclick="gerarOrcamento()" class="btn-primary">Gerar Texto</button>
-                            <button onclick="copiar()" class="btn-secondary">Copiar</button>
-                            <button onclick="limpar()" id="limpar-btn" class="btn-secondary">Limpar</button>
+                            <button onclick="copiarOrcamento()" class="btn-secondary">Copiar</button>
+                            <button onclick="limparOrcamento()" id="limpar-btn" class="btn-secondary">Limpar</button>
                         </div>
 
                         <div class="total-container">
@@ -74,25 +74,25 @@
 
     <div id="toast">Orçamento copiado!</div>
 
-<div id="modalLoginAdmin" class="modal">
-    <div class="modal-content">
-        <h3>Acesso Restrito</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
-            Para acessar o modo administrador insira a senha
-        </p>
-        
-        <input type="password" id="senhaAdminInput" class="input-modal" placeholder="Senha">
-
-        <div class="botoes-admin-stack">
-            <button onclick="confirmarLogin()" id="login">ENTRAR</button>
+    <div id="modalLoginAdmin" class="modal">
+        <div class="modal-content">
+            <h3>Acesso Restrito</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Para acessar o modo administrador insira a senha
+            </p>
             
-            <div class="opcoes-texto">
-                <span onclick="fecharModal()" id="cancelar">Cancelar</span>
-                <span onclick="sairAdministrador()" id="sair-adm">Sair do Administrador</span>
+            <input type="password" id="senhaAdminInput" class="input-modal" placeholder="Senha">
+
+            <div class="botoes-admin-stack">
+                <button onclick="confirmarLogin()" id="login">ENTRAR</button>
+                
+                <div class="opcoes-texto">
+                    <span onclick="fecharModal()" id="cancelar">Cancelar</span>
+                    <span onclick="sairAdministrador()" id="sair-adm">Sair do Administrador</span>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <div id="modalAdmin" class="modal">
         <div class="modal-content" style="max-width: 600px;">
@@ -140,7 +140,7 @@
         </div>
     </div>
 
-    <script src="js/data.js"></script>
-    <script src="js/script.js"></script>
+    <script src="/static/js/data.js"></script>
+<script src="/js/script.js"></script>
 </body>
 </html>

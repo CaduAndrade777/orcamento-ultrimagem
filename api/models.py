@@ -4,7 +4,8 @@ from .database import Base
 class ProcedimentoDB(Base):
     __tablename__ = "procedimentos"
 
-    id = Column(Integer, primary_key=True, index=True)
+    # Adicionado autoincrement=True para evitar erro no salvamento
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True) 
     nome = Column(String(255), unique=True, index=True)
     categoria = Column(String(100))
     valor_particular = Column(Float)

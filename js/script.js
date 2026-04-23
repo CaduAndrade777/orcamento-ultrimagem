@@ -9,30 +9,24 @@ const frases = [
     "Sua produtividade hoje define o seu amanhã."
 ];
 
-// --- CARGA INICIAL DO MYSQL ---
+// --- CARGA INICIAL ---
 async function carregarDadosIniciais() {
     try {
-        const response = await fetch('http://127.0.0.1:8000/api/procedimentos');
-        if (!response.ok) throw new Error("Erro na rede");
-        
+        const response = await fetch('/api/procedimentos');
+        if (!response.ok) throw new Error('Falha ao carregar');
         const dados = await response.json();
         window.procedimentos = dados;
-        
-        atualizarFrase();
         renderExames();
+        atualizarFrase();
+        atualizarDatalistCategorias();
     } catch (error) {
-        console.error("Erro ao carregar exames do MySQL:", error);
-        dispararToast("❌ Falha ao carregar dados do servidor", "erro");
-        window.procedimentos = window.procedimentos || {};
+        dispararToast("❌ Erro ao carregar dados", "erro");
     }
 }
 
 function atualizarFrase() {
     const el = document.getElementById("fraseMotivacional");
-    if (el) {
-        const randomFrase = frases[Math.floor(Math.random() * frases.length)];
-        el.innerText = `"${randomFrase}"`;
-    }
+    if (el) el.innerText = `"${frases[Math.floor(Math.random() * frases.length)]}"`;
 }
 
 function renderExames() {
@@ -40,146 +34,36 @@ function renderExames() {
     if (!lista || !window.procedimentos) return;
     lista.innerHTML = "";
 
-    const categorias = Object.keys(window.procedimentos).sort();
-
-    categorias.forEach(categoria => {
-        const exames = window.procedimentos[categoria];
+    Object.keys(window.procedimentos).sort().forEach(categoria => {
         const containerCategoria = document.createElement("div");
         containerCategoria.className = "categoria-group";
+        containerCategoria.innerHTML = `<div class="categoria">${categoria.toUpperCase()}</div>`;
 
-        const titulo = document.createElement("div");
-        titulo.className = "categoria";
-        titulo.innerText = categoria.toUpperCase();
-        containerCategoria.appendChild(titulo);
-
-        exames.forEach(proc => {
+        window.procedimentos[categoria].forEach(proc => {
             const div = document.createElement("div");
             div.className = "exame";
             if (selecionados.find(p => p.proc.nome === proc.nome)) div.classList.add("selecionado");
 
             const btnEdit = modoAdmin ? `
-                <div class="edit-icon-container" onclick="event.stopPropagation(); abrirEdicao('${categoria}', '${proc.nome}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                    </svg>
+                <div class="edit-icon-container" onclick="event.stopPropagation(); abrirEdicao('${categoria}', '${proc.nome.replace(/'/g, "\\'")}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                 </div>` : "";
 
-            div.innerHTML = `<span>${proc.nome} - <strong>R$ ${proc.valores[tipoSelecionado]}</strong></span> ${btnEdit}`;
+            div.innerHTML = `<span>${proc.nome} - <strong>R$ ${proc.valores[tipoSelecionado].toFixed(2)}</strong></span> ${btnEdit}`;
             div.onclick = () => toggleLinha(proc);
             containerCategoria.appendChild(div);
         });
-
         lista.appendChild(containerCategoria);
     });
     renderSelecionados();
 }
 
-function abrirEdicao(categoria, nomeExame) {
-    const proc = window.procedimentos[categoria].find(p => p.nome === nomeExame);
-    if (!proc) return;
-
-    document.getElementById('tituloModalAdmin').innerText = "Editar Procedimento";
-    document.getElementById('editCategoria').value = categoria;
-    document.getElementById('editNome').value = proc.nome;
-    document.getElementById('vParticular').value = proc.valores.particular;
-    document.getElementById('vDesconto').value = proc.valores.desconto;
-    document.getElementById('vEspecial').value = proc.valores.especial;
-    document.getElementById('vPrefeitura').value = proc.valores.prefeitura;
-
-    window.editandoAgora = { categoriaAnterior: categoria, nomeAnterior: proc.nome };
-    document.getElementById('modalAdmin').style.display = 'flex';
-}
-
-function abrirNovoProcedimento() {
-    document.getElementById('tituloModalAdmin').innerText = "Novo Procedimento";
-    document.getElementById('editCategoria').value = "";
-    document.getElementById('editNome').value = "";
-    document.getElementById('vParticular').value = "";
-    document.getElementById('vDesconto').value = "";
-    document.getElementById('vEspecial').value = "";
-    document.getElementById('vPrefeitura').value = "";
-    
-    window.editandoAgora = null;
-    document.getElementById('modalAdmin').style.display = 'flex';
-}
-
-async function salvarAlteracao() {
-    const procData = {
-        categoria: document.getElementById('editCategoria').value,
-        nome: document.getElementById('editNome').value,
-        valores: {
-            particular: parseFloat(document.getElementById('vParticular').value || 0),
-            desconto: parseFloat(document.getElementById('vDesconto').value || 0),
-            especial: parseFloat(document.getElementById('vEspecial').value || 0),
-            prefeitura: parseFloat(document.getElementById('vPrefeitura').value || 0)
-        }
-    };
-
-    try {
-        const response = await fetch('http://localhost:8000/api/procedimentos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(procData)
-        });
-
-        if (response.ok) {
-            dispararToast("✅ Salvo no servidor!");
-            fecharModal();
-            await carregarDadosIniciais(); 
-        }
-    } catch (error) {
-        dispararToast("❌ Erro ao conectar com o servidor", "erro");
-    }
-}
-
-// --- FUNÇÕES DE INTERAÇÃO (Chip, Toggle, etc) ---
-
+// --- INTERAÇÕES DE SELEÇÃO ---
 function toggleLinha(proc) {
     const index = selecionados.findIndex(p => p.proc.nome === proc.nome);
-    if (index > -1) {
-        selecionados[index].qtd++;
-    } else {
-        selecionados.push({ proc, qtd: 1 });
-    }
+    if (index > -1) selecionados[index].qtd++;
+    else selecionados.push({ proc, qtd: 1 });
     atualizarTudo();
-}
-
-function adicionarMaisUm(nome) {
-    const item = selecionados.find(p => p.proc.nome === nome);
-    if (item) item.qtd++;
-    atualizarTudo();
-}
-
-function diminuirExame(nome) {
-    const index = selecionados.findIndex(p => p.proc.nome === nome);
-    if (index > -1) {
-        selecionados[index].qtd--;
-        if (selecionados[index].qtd <= 0) selecionados.splice(index, 1);
-    }
-    atualizarTudo();
-}
-
-function removerExame(nome) {
-    selecionados = selecionados.filter(p => p.proc.nome !== nome);
-    atualizarTudo();
-}
-
-function renderSelecionados() {
-    const container = document.getElementById("examesSelecionados");
-    if (!container) return;
-    container.innerHTML = "";
-
-    selecionados.forEach(item => {
-        const chip = document.createElement("div");
-        chip.className = "chip-exame";
-        chip.innerHTML = `
-            <span class="controle-chip" onclick="diminuirExame('${item.proc.nome}')">−</span>
-            <span style="margin: 0 8px;">${item.proc.nome} (${item.qtd}x)</span>
-            <span class="controle-chip" onclick="adicionarMaisUm('${item.proc.nome}')">+</span>
-            <span class="controle-chip" style="margin-left:10px; color:var(--danger); font-size: 12px;" onclick="removerExame('${item.proc.nome}')">✕</span>
-        `;
-        container.appendChild(chip);
-    });
 }
 
 function atualizarTudo() {
@@ -194,33 +78,35 @@ function atualizarTotal() {
     document.getElementById("contador").innerText = selecionados.reduce((acc, i) => acc + i.qtd, 0);
 }
 
-function dispararToast(mensagem, tipo = "sucesso") {
-    const toast = document.getElementById("toast");
-    toast.classList.remove("mostrar");
-    void toast.offsetWidth; 
-    toast.className = "mostrar"; 
-    if (tipo === "erro") toast.classList.add("erro");
-    if (tipo === "aviso") toast.classList.add("aviso");
-    toast.innerHTML = mensagem;
-    if (window.toastTimeout) clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => { toast.classList.remove("mostrar"); }, 2500);
+function renderSelecionados() {
+    const container = document.getElementById("examesSelecionados");
+    if (!container) return;
+    container.innerHTML = "";
+    selecionados.forEach(item => {
+        const chip = document.createElement("div");
+        chip.className = "chip-exame";
+        chip.innerHTML = `
+            <span class="controle-chip" onclick="event.stopPropagation(); alterarQtd('${item.proc.nome}', -1)">−</span>
+            <span style="margin: 0 8px;">${item.proc.nome} (${item.qtd}x)</span>
+            <span class="controle-chip" onclick="event.stopPropagation(); alterarQtd('${item.proc.nome}', 1)">+</span>
+            <span class="controle-chip" style="margin-left:10px; color:var(--danger);" onclick="event.stopPropagation(); removerExame('${item.proc.nome}')">✕</span>
+        `;
+        container.appendChild(chip);
+    });
 }
 
-function copiar() {
-    const c = document.getElementById("resultado");
-    if (!c.value) return dispararToast("Gere o orçamento primeiro!", "aviso");
-    navigator.clipboard.writeText(c.value).then(() => dispararToast("✅ Copiado!"));
+function alterarQtd(nome, delta) {
+    const item = selecionados.find(p => p.proc.nome === nome);
+    if (item) {
+        item.qtd += delta;
+        if (item.qtd <= 0) removerExame(nome);
+        else atualizarTudo();
+    }
 }
 
-function limpar() {
-    if (selecionados.length === 0) return;
-    selecionados = [];
-    const campo = document.getElementById("resultado");
-    campo.value = "";
-    campo.style.height = "120px";
-    atualizarFrase();
+function removerExame(nome) {
+    selecionados = selecionados.filter(p => p.proc.nome !== nome);
     atualizarTudo();
-    dispararToast("🗑️ Lista limpa", "aviso");
 }
 
 function mudarTipo(tipo, btn) {
@@ -230,95 +116,203 @@ function mudarTipo(tipo, btn) {
     atualizarTudo();
 }
 
+// --- FUNÇÕES DE TEXTO E COPIAR ---
 function gerarOrcamento() {
-    if (selecionados.length === 0) {
-        dispararToast("⚠️ Selecione ao menos um exame primeiro!", "aviso");
-        return;
-    }
+    if (selecionados.length === 0) return dispararToast("⚠️ Selecione exames!", "aviso");
     let texto = "📝 *ORÇAMENTO DE EXAMES*\n\n";
     let totalGeral = 0;
     selecionados.forEach(item => {
-        const valorUnitario = parseFloat(item.proc.valores[tipoSelecionado]);
-        const subtotal = valorUnitario * item.qtd;
-        totalGeral += subtotal;
-        texto += `• ${item.proc.nome} (${item.qtd}x): R$ ${subtotal.toFixed(2)}\n`;
+        const v = item.proc.valores[tipoSelecionado];
+        const sub = v * item.qtd;
+        totalGeral += sub;
+        texto += `• ${item.proc.nome} (${item.qtd}x): R$ ${sub.toFixed(2)}\n`;
     });
     texto += `\n*TOTAL: R$ ${totalGeral.toFixed(2)}*`;
-    const campoResultado = document.getElementById("resultado");
-    campoResultado.value = texto;
-    campoResultado.style.height = "auto"; 
-    campoResultado.style.height = campoResultado.scrollHeight + "px"; 
+    const campo = document.getElementById("resultado");
+    campo.value = texto;
+    campo.style.height = campo.scrollHeight + "px";
     dispararToast("✨ Orçamento gerado!");
 }
 
+function copiarOrcamento() {
+    const campo = document.getElementById("resultado");
+    if (!campo || !campo.value) return dispararToast("⚠️ Gere o orçamento primeiro!", "aviso");
+
+    // Cria um elemento temporário fora da tela
+    const tempInput = document.createElement("textarea");
+    tempInput.value = campo.value;
+    document.body.appendChild(tempInput);
+    
+    // Seleciona e copia
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); // Para mobile
+    document.execCommand("copy");
+    
+    // Remove o lixo
+    document.body.removeChild(tempInput);
+    
+    dispararToast("📋 Copiado com sucesso!");
+}
+
+function limparOrcamento() {
+    selecionados = [];
+    document.getElementById("resultado").value = "";
+    document.getElementById("resultado").style.height = "150px";
+    atualizarTudo();
+    dispararToast("🧹 Lista limpa!");
+}
+
+// --- ADMIN E MODAIS ---
+const SENHA_CORRETA = "22032016";
+
+function verificarAcessoAdmin() {
+    document.getElementById('modalLoginAdmin').style.display = 'flex';
+    document.getElementById('senhaAdminInput').value = "";
+    document.getElementById('senhaAdminInput').focus();
+}
+
+function confirmarLogin() {
+    if (document.getElementById('senhaAdminInput').value === SENHA_CORRETA) {
+        modoAdmin = true;
+        document.getElementById('btnNovoProcedimento').style.display = 'block';
+        fecharModal();
+        renderExames();
+        dispararToast("🔓 Modo Admin Ativado!");
+    } else {
+        dispararToast("❌ Senha incorreta!", "erro");
+    }
+}
+
+function sairAdministrador() {
+    modoAdmin = false;
+    document.getElementById('btnNovoProcedimento').style.display = 'none';
+    fecharModal();
+    renderExames();
+    dispararToast("🔒 Saiu do Admin");
+}
+
+function fecharModal() {
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+}
+
+function abrirEdicao(categoria, nomeExame) {
+    const proc = window.procedimentos[categoria].find(p => p.nome === nomeExame);
+    if (!proc) return;
+    document.getElementById('tituloModalAdmin').innerText = "Editar Procedimento";
+    document.getElementById('editCategoria').value = categoria;
+    document.getElementById('editNome').value = proc.nome;
+    document.getElementById('vParticular').value = proc.valores.particular;
+    document.getElementById('vDesconto').value = proc.valores.desconto;
+    document.getElementById('vEspecial').value = proc.valores.especial;
+    document.getElementById('vPrefeitura').value = proc.valores.prefeitura;
+    document.getElementById('modalAdmin').style.display = 'flex';
+}
+
+function abrirNovoProcedimento() {
+    document.getElementById('tituloModalAdmin').innerText = "Novo Procedimento";
+    document.querySelectorAll('#modalAdmin input').forEach(i => i.value = "");
+    document.getElementById('modalAdmin').style.display = 'flex';
+}
+
+// --- BANCO DE DADOS (POST E DELETE) ---
+async function salvarAlteracao() {
+    const data = {
+        categoria: document.getElementById('editCategoria').value.toUpperCase(),
+        nome: document.getElementById('editNome').value,
+        valores: {
+            particular: parseFloat(document.getElementById('vParticular').value) || 0,
+            desconto: parseFloat(document.getElementById('vDesconto').value) || 0,
+            especial: parseFloat(document.getElementById('vEspecial').value) || 0,
+            prefeitura: parseFloat(document.getElementById('vPrefeitura').value) || 0
+        }
+    };
+
+    try {
+const resp = await fetch('/api/procedimentos', { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+});
+        if (resp.ok) {
+            fecharModal();
+            await carregarDadosIniciais();
+            dispararToast("✅ Salvo com sucesso!");
+        }
+    } catch (e) { dispararToast("❌ Erro ao salvar", "erro"); }
+}
+
+async function excluirProcedimento() {
+    const nome = document.getElementById('editNome').value;
+    if (!nome || !confirm(`Deseja excluir permanentemente: ${nome}?`)) return;
+
+    try {
+        const resp = await fetch(`/api/procedimentos/${encodeURIComponent(nome)}`, { method: 'DELETE' });
+        if (resp.ok) {
+            fecharModal();
+            await carregarDadosIniciais();
+            dispararToast("🗑️ Excluído com sucesso!");
+        } else {
+            dispararToast("❌ Erro ao excluir (404/500)", "erro");
+        }
+    } catch (e) { dispararToast("❌ Erro de rede", "erro"); }
+}
+
+// --- BUSCA ---
 function filtrar() {
-    const termo = document.getElementById("busca").value.toLowerCase().trim();
+    const termo = document.getElementById("busca").value.toLowerCase();
     const grupos = document.querySelectorAll(".categoria-group");
+
     grupos.forEach(grupo => {
         let temExameVisivel = false;
         const exames = grupo.querySelectorAll(".exame");
+
         exames.forEach(exame => {
-            const nomeExame = exame.querySelector("span").innerText.toLowerCase();
-            if (nomeExame.includes(termo)) {
+            const texto = exame.innerText.toLowerCase();
+            if (texto.includes(termo)) {
                 exame.style.display = "flex";
                 temExameVisivel = true;
             } else {
                 exame.style.display = "none";
             }
         });
+        // Esconde a categoria inteira se não tiver nenhum exame nela
         grupo.style.display = temExameVisivel ? "block" : "none";
     });
 }
 
-// --- ADMIN ---
-const SENHA_CORRETA = "admin123"; 
+// --- UTILITÁRIOS ---
+function dispararToast(mensagem, tipo = "sucesso") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
 
-function confirmarLogin() {
-    const senhaDigitada = document.getElementById('senhaAdminInput').value;
-    if (senhaDigitada === SENHA_CORRETA) {
-        modoAdmin = true;
-        const btnNovo = document.getElementById('btnNovoProcedimento');
-        if (btnNovo) btnNovo.style.display = 'block';
-        fecharModal();
-        renderExames(); 
-        dispararToast("🔓 Modo Administrador Ativado!");
-    } else {
-        dispararToast("❌ Senha incorreta!", "erro");
-        document.getElementById('senhaAdminInput').value = "";
-        document.getElementById('senhaAdminInput').focus();
-    }
+    // Reseta o estado
+    toast.className = "";
+    void toast.offsetWidth; // Trigger reflow para reiniciar animação
+    
+    toast.innerHTML = mensagem;
+    toast.classList.add("mostrar");
+    if (tipo === "erro") toast.classList.add("erro");
+    if (tipo === "aviso") toast.classList.add("aviso");
+
+    if (window.toastTimeout) clearTimeout(window.toastTimeout);
+    window.toastTimeout = setTimeout(() => {
+        toast.classList.remove("mostrar");
+    }, 2500);
 }
 
-function sairAdministrador() {
-    modoAdmin = false;
-    const btnNovo = document.getElementById('btnNovoProcedimento');
-    if (btnNovo) btnNovo.style.display = 'none';
-    fecharModal();
-    renderExames(); 
-    dispararToast("🔒 Você saiu do modo administrador", "aviso");
+function atualizarDatalistCategorias() {
+    const dl = document.getElementById('listaCategorias');
+    if (!dl || !window.procedimentos) return; // Adicionada checagem
+    dl.innerHTML = "";
+    Object.keys(window.procedimentos).forEach(c => {
+        dl.innerHTML += `<option value="${c}">`;
+    });
 }
 
-function fecharModal() {
-    const modais = document.querySelectorAll('.modal');
-    modais.forEach(modal => { modal.style.display = 'none'; });
-    const inputSenha = document.getElementById('senhaAdminInput');
-    if (inputSenha) inputSenha.value = '';
-}
-
-function verificarAcessoAdmin() {
-    const modal = document.getElementById('modalLoginAdmin');
-    modal.style.display = 'flex';
-    document.getElementById('senhaAdminInput').focus();
-}
-
-document.getElementById('senhaAdminInput')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') confirmarLogin();
+// --- EVENTOS ---
+document.addEventListener('DOMContentLoaded', () => {
+    carregarDadosIniciais();
+    document.getElementById('senhaAdminInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter') confirmarLogin();
+    });
 });
-
-window.onclick = function(event) {
-    const modalLogin = document.getElementById('modalLoginAdmin');
-    const modalAdmin = document.getElementById('modalAdmin');
-    if (event.target == modalLogin || event.target == modalAdmin) fecharModal();
-}
-
-document.addEventListener('DOMContentLoaded', carregarDadosIniciais);

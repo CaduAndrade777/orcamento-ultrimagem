@@ -1,90 +1,141 @@
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, Float
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles 
+from fastapi.responses import FileResponse   
 from pydantic import BaseModel
-import database
+from typing import Dict
+import urllib.parse
+import pymysql
+import pymysql.cursors
+import os
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Permite que seu Front-end acesse o Back-end
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- MODELO DO BANCO DE DADOS (SQLAlchemy) ---
-class ProcedimentoDB(database.Base):
-    __tablename__ = "procedimentos"
-    id = Column(Integer, primary_key=True, index=True)
-    categoria = Column(String(100))
-    nome = Column(String(255), unique=True)
-    particular = Column(Float)
-    desconto = Column(Float)
-    especial = Column(Float)
-    prefeitura = Column(Float)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 
-# Cria a tabela se não existir
-database.Base.metadata.create_all(bind=database.engine)
+print(f"\n--- SISTEMA ULTRIMAGEM CONECTADO ---")
+print(f"Diretório Raiz: {BASE_DIR}")
+print(f"---------------------------------------\n")
 
-# --- ESQUEMAS DE DADOS (Pydantic para o JSON) ---
-class Valores(BaseModel):
-    particular: float
-    desconto: float
-    especial: float
-    prefeitura: float
+def get_db_connection():
+    try:
+        conn = pymysql.connect(
+            host="127.0.0.1", 
+            user="root",        
+            password="Admin@ultri", 
+            database="OrcaUltri_db",
+            connect_timeout=10,
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        return conn
+    except Exception as e:
+        print(f" ERRO NO MYSQL: {e}")
+        return None
 
-class ProcedimentoRequest(BaseModel):
+class ProcedimentoSchema(BaseModel):
     categoria: str
     nome: str
-    valores: Valores
-
-# --- ROTAS ---
-
-@app.get("/api/procedimentos")
-def listar(db: Session = Depends(database.get_db)):
-    procs = db.query(ProcedimentoDB).all()
-    # Organiza em categorias para o seu front
-    resultado = {}
-    for p in procs:
-        cat = p.categoria.upper()
-        if cat not in resultado:
-            resultado[cat] = []
-        resultado[cat].append({
-            "nome": p.nome,
-            "valores": {
-                "particular": p.particular,
-                "desconto": p.desconto,
-                "especial": p.especial,
-                "prefeitura": p.prefeitura
-            }
-        })
-    return resultado
+    valores: Dict[str, float]
 
 @app.post("/api/procedimentos")
-def salvar(req: ProcedimentoRequest, db: Session = Depends(database.get_db)):
-    db_proc = db.query(ProcedimentoDB).filter(ProcedimentoDB.nome == req.nome).first()
-    
-    if db_proc:
-        # Atualiza
-        db_proc.categoria = req.categoria
-        db_proc.particular = req.valores.particular
-        db_proc.desconto = req.valores.desconto
-        db_proc.especial = req.valores.especial
-        db_proc.prefeitura = req.valores.prefeitura
-    else:
-        # Cria novo
-        novo = ProcedimentoDB(
-            categoria=req.categoria,
-            nome=req.nome,
-            particular=req.valores.particular,
-            desconto=req.valores.desconto,
-            especial=req.valores.especial,
-            prefeitura=req.valores.prefeitura
-        )
-        db.add(novo)
-    
-    db.commit()
-    return {"status": "sucesso"}
+async def salvar_procedimento(proc: ProcedimentoSchema):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Banco desligado")
+    try:
+        with conn.cursor() as cursor:
+            # SQL AJUSTADO COM OS NOMES REAIS DAS COLUNAS
+            sql = """
+                INSERT INTO procedimentos 
+                (categoria, nome, particular, desconto, especial, prefeitura)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                categoria=VALUES(categoria), 
+                particular=VALUES(particular), 
+                desconto=VALUES(desconto), 
+                especial=VALUES(especial), 
+                prefeitura=VALUES(prefeitura)
+            """
+            vals = (
+                proc.categoria.upper(), proc.nome, 
+                proc.valores.get('particular', 0), proc.valores.get('desconto', 0), 
+                proc.valores.get('especial', 0), proc.valores.get('prefeitura', 0)
+            )
+            cursor.execute(sql, vals)
+        conn.commit()
+        print(f" Sucesso: {proc.nome} salvo.")
+        return {"status": "success"}
+    except Exception as e:
+        print(f"❌ ERRO AO SALVAR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/procedimentos")
+async def listar_procedimentos():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Banco desligado")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM procedimentos ORDER BY categoria, nome")
+            exames = cursor.fetchall()
+            
+            resultado = {}
+            for exame in exames:
+                cat = exame['categoria'].upper()
+                if cat not in resultado:
+                    resultado[cat] = []
+                resultado[cat].append({
+                    "nome": exame['nome'],
+                    "valores": {
+                        "particular": float(exame['particular']),
+                        "desconto": float(exame['desconto']),
+                        "especial": float(exame['especial']),
+                        "prefeitura": float(exame['prefeitura'])
+                    }
+                })
+            return resultado
+    except Exception as e:
+        print(f"❌ ERRO AO LISTAR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.delete("/api/procedimentos/{nome}")
+async def excluir_procedimento(nome: str):
+    nome_real = urllib.parse.unquote(nome)
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Banco desligado")
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM procedimentos WHERE nome = %s", (nome_real,))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        print(f"❌ ERRO AO EXCLUIR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+for folder in ["css", "js", "src"]:
+    path = os.path.join(BASE_DIR, folder)
+    if os.path.exists(path):
+        app.mount(f"/{folder}", StaticFiles(directory=path), name=folder)
+
+@app.get("/")
+async def read_index():
+    index_path = os.path.join(BASE_DIR, 'index.html')
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"error": "index.html nao encontrado"}
