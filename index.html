@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orçamentos - QuoteSystem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 
@@ -18,24 +18,37 @@
                 QuoteSystem
             </h1>
         </div>
-        <button class="admin-access-btn" onclick="verificarAcessoAdmin()">Admin</button>
+        <button class="admin-access-btn" onclick="verificarAcessoAdmin()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+            Admin
+        </button>
     </header>
 
     <main>
-        <div class="search-container">
-            <input type="text" id="busca" placeholder="Buscar exame..." oninput="filtrar()">
+        <section class="search-container">
+            <p class="hero-hello" id="saudacao">Olá!</p>
+            <h2 class="hero-title">Vamos montar um orçamento?</h2>
+            <p class="hero-sub">Busque o exame, escolha a tabela de valores e clique para adicionar.</p>
 
-            <div class="tipos">
-                <button class="tipo-btn ativo" onclick="mudarTipo('particular', this)">Particular</button>
-                <button class="tipo-btn" onclick="mudarTipo('desconto', this)">Desconto</button>
-                <button class="tipo-btn" onclick="mudarTipo('especial', this)">Especial</button>
-                <button class="tipo-btn" onclick="mudarTipo('prefeitura', this)">Prefeitura</button>
+            <div class="busca-wrap">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input type="text" id="busca" placeholder="Qual exame você procura?" oninput="filtrar()" autocomplete="off">
             </div>
-        </div>
+
+            <div class="tipos-linha">
+                <span class="tipos-label">Tabela de valores</span>
+                <div class="tipos">
+                    <button class="tipo-btn ativo" onclick="mudarTipo('particular', this)">Particular</button>
+                    <button class="tipo-btn" onclick="mudarTipo('desconto', this)">Desconto</button>
+                    <button class="tipo-btn" onclick="mudarTipo('especial', this)">Especial</button>
+                    <button class="tipo-btn" onclick="mudarTipo('prefeitura', this)">Prefeitura</button>
+                </div>
+            </div>
+        </section>
 
         <div class="container">
             <div class="coluna-exames">
-                <button id="btnNovoProcedimento" class="btn-primary" style="display: none; margin-bottom: 1rem; width: 100%;" onclick="abrirNovoProcedimento()">
+                <button id="btnNovoProcedimento" class="btn-primary" style="display: none;" onclick="abrirNovoProcedimento()">
                     + Novo Procedimento
                 </button>
 
@@ -46,27 +59,29 @@
             <div class="orcamento-wrapper">
                 <div class="orcamento">
                     <div class="orcamento-header">
-                        <h3>Orçamento (<span id="contador">0</span> exames)</h3>
+                        <h3>Seu orçamento</h3>
+                        <span class="contador-pill"><span id="contador">0</span> exames</span>
                     </div>
-
-                    <textarea id="resultado" placeholder="Selecione os exames..." readonly style="min-height: 150px; flex-grow: 0;"></textarea>
 
                     <div id="examesSelecionados" class="chips-container"></div>
 
+                    <p class="rotulo">Texto pronto para enviar</p>
+                    <textarea id="resultado" placeholder="Selecione os exames e clique em &quot;Gerar Texto&quot;..." readonly></textarea>
+
                     <div class="topo-orcamento">
+                        <div class="total-container">
+                            <span class="total-label">Total</span>
+                            <span class="total-valor" id="total">R$ 0.00</span>
+                        </div>
+
                         <div class="botoes">
                             <button onclick="gerarOrcamento()" class="btn-primary">Gerar Texto</button>
                             <button onclick="copiarOrcamento()" class="btn-secondary">Copiar</button>
                             <button onclick="limparOrcamento()" id="limpar-btn" class="btn-secondary">Limpar</button>
                         </div>
-
-                        <div class="total-container">
-                            <span class="total-label">Total</span>
-                            <span class="total-valor" id="total">R$ 0.00</span>
-                        </div>
                     </div>
                 </div>
-                
+
                 <div id="fraseMotivacional" class="frase-motivacional-externa"></div>
             </div>
         </div>
@@ -75,72 +90,78 @@
     <div id="toast">Orçamento copiado!</div>
 
     <div id="modalLoginAdmin" class="modal">
-        <div class="modal-content">
-            <h3>Acesso Restrito</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
-                Para acessar o modo administrador insira a senha
-            </p>
-            
+        <div class="modal-content modal-login">
+            <h3>Acesso restrito</h3>
+            <p class="modal-texto">Para entrar no modo administrador, digite a senha.</p>
+
             <input type="password" id="senhaAdminInput" class="input-modal" placeholder="Senha">
 
             <div class="botoes-admin-stack">
-                <button onclick="confirmarLogin()" id="login">ENTRAR</button>
-                
+                <button onclick="confirmarLogin()" id="login">Entrar</button>
+
                 <div class="opcoes-texto">
                     <span onclick="fecharModal()" id="cancelar">Cancelar</span>
-                    <span onclick="sairAdministrador()" id="sair-adm">Sair do Administrador</span>
+                    <span onclick="sairAdministrador()" id="sair-adm">Sair do administrador</span>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="modalAdmin" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content modal-largo">
             <h3 id="tituloModalAdmin">Procedimento</h3>
-            
-            <div class="form-admin" style="text-align: left; margin-top: 1.5rem;">
-                <div style="margin-bottom: 1rem;">
-                    <label style="display:block; font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:5px;">CATEGORIA</label>
-                    <input type="text" id="editCategoria" list="listaCategorias" class="input-modal" style="text-align:left;" placeholder="Ex: ULTRASSOM">
+
+            <div class="form-admin">
+                <div class="campo">
+                    <label for="editCategoria">Categoria</label>
+                    <input type="text" id="editCategoria" list="listaCategorias" class="input-modal" placeholder="Ex: ULTRASSOM">
                     <datalist id="listaCategorias"></datalist>
                 </div>
 
-                <div style="margin-bottom: 1rem;">
-                    <label style="display:block; font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:5px;">NOME DO EXAME</label>
-                    <input type="text" id="editNome" class="input-modal" style="text-align:left;">
+                <div class="campo">
+                    <label for="editNome">Nome do exame</label>
+                    <input type="text" id="editNome" class="input-modal">
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Particular (R$)</label>
-                        <input type="number" id="vParticular" class="input-modal" style="text-align:left;">
+                <div class="campo-grid">
+                    <div class="campo">
+                        <label for="vParticular">Particular (R$)</label>
+                        <input type="number" id="vParticular" class="input-modal">
                     </div>
-                    <div>
-                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Desconto (R$)</label>
-                        <input type="number" id="vDesconto" class="input-modal" style="text-align:left;">
+                    <div class="campo">
+                        <label for="vDesconto">Desconto (R$)</label>
+                        <input type="number" id="vDesconto" class="input-modal">
                     </div>
-                    <div>
-                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Especial (R$)</label>
-                        <input type="number" id="vEspecial" class="input-modal" style="text-align:left;">
+                    <div class="campo">
+                        <label for="vEspecial">Especial (R$)</label>
+                        <input type="number" id="vEspecial" class="input-modal">
                     </div>
-                    <div>
-                        <label style="display:block; font-size:0.75rem; color:var(--text-muted);">Prefeitura (R$)</label>
-                        <input type="number" id="vPrefeitura" class="input-modal" style="text-align:left;">
+                    <div class="campo">
+                        <label for="vPrefeitura">Prefeitura (R$)</label>
+                        <input type="number" id="vPrefeitura" class="input-modal">
                     </div>
                 </div>
             </div>
 
-            <div class="botoes" style="justify-content: space-between; margin-top: 2rem;">
-                <div>
+            <div class="botoes modal-acoes">
+                <div class="botoes">
                     <button onclick="salvarAlteracao()" class="btn-primary">Salvar</button>
                     <button onclick="fecharModal()" class="btn-secondary">Cancelar</button>
                 </div>
-                <button onclick="excluirProcedimento()" id="btnExcluir" class="btn-secondary" style="background: var(--danger); border: none;">Excluir</button>
+                <button onclick="excsluirProcedimento()" id="btnExcluir" class="btn-perigo">Excluir</button>
             </div>
         </div>
     </div>
 
+    <script>
+        (function () {
+            var h = new Date().getHours();
+            var saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+            var el = document.getElementById('saudacao');
+            if (el) el.textContent = saudacao + '!';
+        })();
+    </script>
     <script src="/static/js/data.js"></script>
-<script src="/js/script.js"></script>
+    <script src="/js/script.js"></script>
 </body>
 </html>

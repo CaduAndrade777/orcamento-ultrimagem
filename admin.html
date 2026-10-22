@@ -4,25 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Administrativo - QuoteSystem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="admin-page">
 
     <header>
         <div class="header-left">
-            <h1>Painel Admin</h1>
+            <h1 id="title">
+                <img src="/src/logo.png" alt="Logo">
+                Painel Admin
+            </h1>
         </div>
-        <button class="admin-access-btn" onclick="window.location.href='index.html'">Voltar ao Sistema</button>
+        <button class="admin-access-btn" onclick="window.location.href='index.html'">Voltar ao sistema</button>
     </header>
 
     <main class="admin-container">
         <div class="admin-header-actions">
             <div>
-                <h2>Gerenciar Procedimentos</h2>
-                <p style="color: var(--text-muted); font-size: 14px;">Edite valores ou adicione novos exames à base de dados.</p>
+                <h2>Gerenciar procedimentos</h2>
+                <p>Edite valores ou adicione novos exames à base de dados.</p>
             </div>
-            <button onclick="abrirNovoProcedimento()" class="btn-sucesso">+ Novo Procedimento</button>
+            <button onclick="abrirNovoProcedimento()" class="btn-sucesso">+ Novo procedimento</button>
         </div>
 
         <div class="card-tabela">
@@ -42,10 +45,10 @@
                     </tbody>
             </table>
         </div>
-        
+
         <div class="admin-footer">
-            <p style="color: var(--text-muted);">Lembre-se de salvar antes de sair.</p>
-            <button onclick="salvarTudo()" class="btn-principal btn-lg">SALVAR TODAS AS ALTERAÇÕES</button>
+            <p>Lembre-se de salvar antes de sair.</p>
+            <button onclick="salvarTudo()" class="btn-principal btn-lg">Salvar todas as alterações</button>
         </div>
     </main>
 

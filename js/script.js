@@ -9,6 +9,14 @@ const frases = [
     "Sua produtividade hoje define o seu amanhã."
 ];
 
+// --- UTILITÁRIO DE BUSCA (ignora maiúsculas e acentos) ---
+function normalizar(texto) {
+    return (texto || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
 // --- CARGA INICIAL ---
 async function carregarDadosIniciais() {
     try {
@@ -16,12 +24,34 @@ async function carregarDadosIniciais() {
         if (!response.ok) throw new Error('Falha ao carregar');
         const dados = await response.json();
         window.procedimentos = dados;
+
+        sincronizarSelecionados();
         renderExames();
-        atualizarFrase();
+        atualizarTotal();
         atualizarDatalistCategorias();
+        if (!window.fraseJaExibida) {
+            atualizarFrase();
+            window.fraseJaExibida = true;
+        }
     } catch (error) {
         dispararToast("❌ Erro ao carregar dados", "erro");
     }
+}
+
+// Depois de editar/excluir no admin, atualiza os exames já selecionados
+// com os valores novos (e remove os que foram excluídos).
+function sincronizarSelecionados() {
+    const todos = [];
+    Object.keys(window.procedimentos).forEach(cat => {
+        window.procedimentos[cat].forEach(p => todos.push(p));
+    });
+
+    selecionados = selecionados
+        .map(item => {
+            const atualizado = todos.find(p => p.nome === item.proc.nome);
+            return atualizado ? { proc: atualizado, qtd: item.qtd } : null;
+        })
+        .filter(Boolean);
 }
 
 function atualizarFrase() {
@@ -29,32 +59,63 @@ function atualizarFrase() {
     if (el) el.innerText = `"${frases[Math.floor(Math.random() * frases.length)]}"`;
 }
 
+// --- RENDERIZAÇÃO DA LISTA ---
 function renderExames() {
     const lista = document.getElementById("listaProcedimentos");
     if (!lista || !window.procedimentos) return;
+
+    // guarda a posição do scroll para a lista não "pular" ao clicar
+    const scrollAnterior = lista.scrollTop;
+
     lista.innerHTML = "";
 
     Object.keys(window.procedimentos).sort().forEach(categoria => {
         const containerCategoria = document.createElement("div");
         containerCategoria.className = "categoria-group";
-        containerCategoria.innerHTML = `<div class="categoria">${categoria.toUpperCase()}</div>`;
+
+        const titulo = document.createElement("div");
+        titulo.className = "categoria";
+        titulo.textContent = categoria.toUpperCase();
+        containerCategoria.appendChild(titulo);
 
         window.procedimentos[categoria].forEach(proc => {
             const div = document.createElement("div");
             div.className = "exame";
-            if (selecionados.find(p => p.proc.nome === proc.nome)) div.classList.add("selecionado");
+            div.dataset.busca = normalizar(proc.nome); // usado pelo filtrar()
 
-            const btnEdit = modoAdmin ? `
-                <div class="edit-icon-container" onclick="event.stopPropagation(); abrirEdicao('${categoria}', '${proc.nome.replace(/'/g, "\\'")}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                </div>` : "";
+            if (selecionados.find(p => p.proc.nome === proc.nome)) {
+                div.classList.add("selecionado");
+            }
 
-            div.innerHTML = `<span>${proc.nome} - <strong>R$ ${proc.valores[tipoSelecionado].toFixed(2)}</strong></span> ${btnEdit}`;
-            div.onclick = () => toggleLinha(proc);
+            const span = document.createElement("span");
+            span.append(`${proc.nome} - `);
+            const preco = document.createElement("strong");
+            preco.textContent = `R$ ${proc.valores[tipoSelecionado].toFixed(2)}`;
+            span.appendChild(preco);
+            div.appendChild(span);
+
+            if (modoAdmin) {
+                const btnEdit = document.createElement("div");
+                btnEdit.className = "edit-icon-container";
+                btnEdit.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`;
+                btnEdit.addEventListener("click", e => {
+                    e.stopPropagation();
+                    abrirEdicao(categoria, proc.nome);
+                });
+                div.appendChild(btnEdit);
+            }
+
+            div.addEventListener("click", () => toggleLinha(proc));
             containerCategoria.appendChild(div);
         });
+
         lista.appendChild(containerCategoria);
     });
+
+    // reaplica a pesquisa que estava digitada (isso mantém a busca ativa)
+    filtrar();
+
+    lista.scrollTop = scrollAnterior;
     renderSelecionados();
 }
 
@@ -68,8 +129,7 @@ function toggleLinha(proc) {
 
 function atualizarTudo() {
     atualizarTotal();
-    renderExames();
-    renderSelecionados();
+    renderExames(); // já chama filtrar() e renderSelecionados()
 }
 
 function atualizarTotal() {
@@ -82,15 +142,42 @@ function renderSelecionados() {
     const container = document.getElementById("examesSelecionados");
     if (!container) return;
     container.innerHTML = "";
+
     selecionados.forEach(item => {
         const chip = document.createElement("div");
         chip.className = "chip-exame";
-        chip.innerHTML = `
-            <span class="controle-chip" onclick="event.stopPropagation(); alterarQtd('${item.proc.nome}', -1)">−</span>
-            <span style="margin: 0 8px;">${item.proc.nome} (${item.qtd}x)</span>
-            <span class="controle-chip" onclick="event.stopPropagation(); alterarQtd('${item.proc.nome}', 1)">+</span>
-            <span class="controle-chip" style="margin-left:10px; color:var(--danger);" onclick="event.stopPropagation(); removerExame('${item.proc.nome}')">✕</span>
-        `;
+
+        const menos = document.createElement("span");
+        menos.className = "controle-chip";
+        menos.textContent = "−";
+        menos.addEventListener("click", e => {
+            e.stopPropagation();
+            alterarQtd(item.proc.nome, -1);
+        });
+
+        const nome = document.createElement("span");
+        nome.style.margin = "0 8px";
+        nome.textContent = `${item.proc.nome} (${item.qtd}x)`;
+
+        const mais = document.createElement("span");
+        mais.className = "controle-chip";
+        mais.textContent = "+";
+        mais.addEventListener("click", e => {
+            e.stopPropagation();
+            alterarQtd(item.proc.nome, 1);
+        });
+
+        const remover = document.createElement("span");
+        remover.className = "controle-chip";
+        remover.style.marginLeft = "10px";
+        remover.style.color = "var(--danger)";
+        remover.textContent = "✕";
+        remover.addEventListener("click", e => {
+            e.stopPropagation();
+            removerExame(item.proc.nome);
+        });
+
+        chip.append(menos, nome, mais, remover);
         container.appendChild(chip);
     });
 }
@@ -138,19 +225,28 @@ function copiarOrcamento() {
     const campo = document.getElementById("resultado");
     if (!campo || !campo.value) return dispararToast("⚠️ Gere o orçamento primeiro!", "aviso");
 
-    // Cria um elemento temporário fora da tela
+    // Tenta a API moderna; se não houver (ou falhar), usa o método antigo
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(campo.value)
+            .then(() => dispararToast("📋 Copiado com sucesso!"))
+            .catch(() => copiarFallback(campo.value));
+    } else {
+        copiarFallback(campo.value);
+    }
+}
+
+function copiarFallback(texto) {
     const tempInput = document.createElement("textarea");
-    tempInput.value = campo.value;
+    tempInput.value = texto;
+    tempInput.style.position = "fixed";
+    tempInput.style.opacity = "0";
     document.body.appendChild(tempInput);
-    
-    // Seleciona e copia
+
     tempInput.select();
     tempInput.setSelectionRange(0, 99999); // Para mobile
     document.execCommand("copy");
-    
-    // Remove o lixo
+
     document.body.removeChild(tempInput);
-    
     dispararToast("📋 Copiado com sucesso!");
 }
 
@@ -228,15 +324,17 @@ async function salvarAlteracao() {
     };
 
     try {
-const resp = await fetch('/api/procedimentos', { 
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-});
+        const resp = await fetch('/api/procedimentos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
         if (resp.ok) {
             fecharModal();
             await carregarDadosIniciais();
             dispararToast("✅ Salvo com sucesso!");
+        } else {
+            dispararToast("❌ Erro ao salvar", "erro");
         }
     } catch (e) { dispararToast("❌ Erro ao salvar", "erro"); }
 }
@@ -259,22 +357,23 @@ async function excluirProcedimento() {
 
 // --- BUSCA ---
 function filtrar() {
-    const termo = document.getElementById("busca").value.toLowerCase();
+    const campoBusca = document.getElementById("busca");
+    const termo = normalizar(campoBusca ? campoBusca.value : "").trim();
     const grupos = document.querySelectorAll(".categoria-group");
 
     grupos.forEach(grupo => {
         let temExameVisivel = false;
-        const exames = grupo.querySelectorAll(".exame");
 
-        exames.forEach(exame => {
-            const texto = exame.innerText.toLowerCase();
-            if (texto.includes(termo)) {
+        grupo.querySelectorAll(".exame").forEach(exame => {
+            // busca só pelo nome do exame (não pelo preço)
+            if ((exame.dataset.busca || "").includes(termo)) {
                 exame.style.display = "flex";
                 temExameVisivel = true;
             } else {
                 exame.style.display = "none";
             }
         });
+
         // Esconde a categoria inteira se não tiver nenhum exame nela
         grupo.style.display = temExameVisivel ? "block" : "none";
     });
@@ -288,7 +387,7 @@ function dispararToast(mensagem, tipo = "sucesso") {
     // Reseta o estado
     toast.className = "";
     void toast.offsetWidth; // Trigger reflow para reiniciar animação
-    
+
     toast.innerHTML = mensagem;
     toast.classList.add("mostrar");
     if (tipo === "erro") toast.classList.add("erro");
@@ -302,7 +401,7 @@ function dispararToast(mensagem, tipo = "sucesso") {
 
 function atualizarDatalistCategorias() {
     const dl = document.getElementById('listaCategorias');
-    if (!dl || !window.procedimentos) return; // Adicionada checagem
+    if (!dl || !window.procedimentos) return;
     dl.innerHTML = "";
     Object.keys(window.procedimentos).forEach(c => {
         dl.innerHTML += `<option value="${c}">`;
